@@ -122,7 +122,39 @@ if opcao == "Análise Individual":
         st.progress(float(probabilidade))
 
 else:
-    st.info("A análise em lote será implementada na próxima etapa. Para agora, utilize a análise individual.")
+    st.subheader("Análise em Lote")
+    uploaded_file = st.file_uploader(
+        "Faça upload de um CSV com as colunas do cliente",
+        type=["csv"],
+    )
+
+    if uploaded_file is not None:
+        try:
+            dados_lote = pd.read_csv(uploaded_file)
+            colunas_faltantes = [coluna for coluna in FEATURES if coluna not in dados_lote.columns]
+
+            if colunas_faltantes:
+                st.error(f"Arquivo sem as colunas necessárias: {colunas_faltantes}")
+            else:
+                dados_lote = dados_lote[FEATURES].copy()
+                probabilidade = modelo.predict_proba(dados_lote)[:, 1]
+                previsao = modelo.predict(dados_lote)
+
+                resultado = dados_lote.copy()
+                resultado["probabilidade_churn"] = probabilidade
+                resultado["previsao_churn"] = previsao
+                resultado["classificacao"] = resultado["previsao_churn"].map({0: "Baixo risco", 1: "Alto risco"})
+
+                st.success(f"{len(resultado)} clientes processados com sucesso.")
+                st.dataframe(resultado, use_container_width=True)
+
+                contagem = resultado["classificacao"].value_counts().rename_axis("status").reset_index(name="quantidade")
+                st.bar_chart(contagem.set_index("status")["quantidade"])
+
+        except Exception as erro:
+            st.exception(f"Erro ao processar o arquivo: {erro}")
+    else:
+        st.info("Envie um CSV com as colunas: tempo_contrato, valor_mensal, reclamacoes, nota_satisfacao, chamados_suporte.")
 
 st.markdown("---")
 st.subheader("Como a previsão é feita")
